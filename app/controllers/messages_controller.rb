@@ -76,11 +76,7 @@ class MessagesController < ApplicationController
       recipient_bots = bots_eligible_for_webhook.excluding(@message.creator)
 
       Rails.logger.info(
-        "Webhook recipients resolved",
-        message_id: @message.id,
-        room_id: @room.id,
-        sender_id: @message.creator_id,
-        bot_ids: recipient_bots.pluck(:id)
+        "Webhook recipients resolved: message_id=#{@message.id} room_id=#{@room.id} sender_id=#{@message.creator_id} bot_ids=#{recipient_bots.pluck(:id).join(",") }"
       )
 
       recipient_bots.each { |bot| bot.deliver_webhook_later(@message) }
