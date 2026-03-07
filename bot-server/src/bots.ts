@@ -5,6 +5,9 @@ import type { WebhookPayload, Message, EnvVars } from './types.js';
 
 type WebhookResult = { success: boolean; response?: string; error?: string; reason?: string };
 
+const ROOM_CONTEXT_LIMIT = 20;
+const roomContexts = new Map<string, Message[]>();
+
 export async function handleWebhook(
   payload: WebhookPayload,
   botShortcode: string,
@@ -25,9 +28,10 @@ export async function handleWebhook(
   const senderName = payload.user.name;
   const roomName = payload.room.name;
   const normalizedRoomName = roomName ?? `Direct room #${payload.room.id}`;
+  const contextKey = roomContextKey(payload.room.id, botShortcode);
+  const recentMessages = loadRecentMessages(contextKey);
 
-  // Get recent messages for context (simplified - in production, fetch from Sabbatic API)
-  const recentMessages: Message[] = [];
+  rememberIncomingMessage(contextKey, payload);
 
   // Check if bot was mentioned (plain text can omit ActionText mention attachments, so inspect HTML too)
   const wasMentionedInPlainText = includesBotMentionInText(messageText, botShortcode);
@@ -45,6 +49,7 @@ export async function handleWebhook(
     wasMentionedInPlainText,
     wasMentionedInHtml,
     respondToAny: Boolean(bot.respond_to_any),
+    recentContextMessages: recentMessages.length,
   });
 
   if (wasMentioned || isDirectConversation) {
@@ -74,8 +79,9 @@ export async function handleWebhook(
       });
 
       if (normalized && !response.includes('SKIP')) {
-        await postMessageToSabbatic(bot.bot_key, response, payload.room.id, env);
-        return { success: true, response, reason: `replied-via-${trigger}` };
+        await postMessageToSabbatic(bot.bot_key, normalized, payload.room.id, env);
+        rememberBotReply(contextKey, bot.name, normalized);
+        return { success: true, response: normalized, reason: `replied-via-${trigger}` };
       }
 
       return { success: true, response: '', reason: `empty-or-skip-via-${trigger}` };
@@ -88,7 +94,7 @@ export async function handleWebhook(
   if (bot.respond_to_any) {
     const newMessage: Message = {
       id: payload.message.id,
-      user_id: 0,
+      user_id: payload.user.id,
       user_name: senderName,
       body: messageText,
       created_at: new Date().toISOString(),
@@ -118,7 +124,8 @@ export async function handleWebhook(
 
       if (!shouldRespond.includes('SKIP') && normalized) {
         await postMessageToSabbatic(bot.bot_key, normalized, payload.room.id, env);
-        return { success: true, response: shouldRespond, reason: 'replied-via-respond-to-any' };
+        rememberBotReply(contextKey, bot.name, normalized);
+        return { success: true, response: normalized, reason: 'replied-via-respond-to-any' };
       }
 
       return { success: true, response: '', reason: 'empty-or-skip-via-respond-to-any' };
@@ -149,7 +156,7 @@ export async function postMessageToSabbatic(
     method: 'POST',
     headers: {
       'Content-Type': 'text/plain',
-      'Accept': 'text/plain, application/json;q=0.9, */*;q=0.1',
+      Accept: 'text/plain, application/json;q=0.9, */*;q=0.1',
     },
     body: message,
   });
@@ -191,6 +198,45 @@ function botKeyHint(botKey: string): string {
   return `${id}-${prefix}…${suffix}`;
 }
 
+function roomContextKey(roomId: number, botShortcode: string): string {
+  return `${roomId}:${botShortcode.toLowerCase()}`;
+}
+
+function loadRecentMessages(contextKey: string): Message[] {
+  return [ ...(roomContexts.get(contextKey) || []) ];
+}
+
+function rememberIncomingMessage(contextKey: string, payload: WebhookPayload): void {
+  const messages = loadRecentMessages(contextKey);
+
+  messages.push({
+    id: payload.message.id,
+    user_id: payload.user.id,
+    user_name: payload.user.name,
+    body: payload.message.body.plain,
+    created_at: new Date().toISOString(),
+  });
+
+  roomContexts.set(contextKey, tail(messages, ROOM_CONTEXT_LIMIT));
+}
+
+function rememberBotReply(contextKey: string, botName: string, body: string): void {
+  const messages = loadRecentMessages(contextKey);
+
+  messages.push({
+    id: Date.now(),
+    user_id: 0,
+    user_name: botName,
+    body,
+    created_at: new Date().toISOString(),
+  });
+
+  roomContexts.set(contextKey, tail(messages, ROOM_CONTEXT_LIMIT));
+}
+
+function tail<T>(list: T[], count: number): T[] {
+  return list.slice(Math.max(0, list.length - count));
+}
 
 function includesBotMentionInText(text: string, botShortcode: string): boolean {
   return text.toLowerCase().includes(`@${botShortcode}`.toLowerCase());

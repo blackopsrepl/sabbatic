@@ -36,6 +36,7 @@ export interface UpdateBotInput {
 
 export interface WebhookPayload {
   user: {
+    id: number;
     name: string;
   };
   room: {
