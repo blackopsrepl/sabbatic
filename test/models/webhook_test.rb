@@ -39,6 +39,19 @@ class WebhookTest < ActiveSupport::TestCase
     assert reply_message.attachment.present?
   end
 
+
+  test "delivery with json reply does not create attachment message" do
+    assert_no_difference -> { Message.count } do
+      WebMock.stub_request(:post, webhooks(:bender).url).to_return(
+        status: 200,
+        body: { success: true, response: "Hello" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+      webhooks(:bender).deliver(messages(:first))
+    end
+  end
+
   test "delivery with error reply" do
     assert_no_difference -> { Message.count } do
       WebMock.stub_request(:post, webhooks(:bender).url).to_return(status: 500, body: "Internal Error!", headers: {})
@@ -60,6 +73,6 @@ class WebhookTest < ActiveSupport::TestCase
     response = webhooks(:bender).deliver(messages(:first))
 
     reply_message = Message.last
-    assert_equal "Failed to respond within 7 seconds", reply_message.body.to_plain_text
+    assert_equal "Bot is still processing and may reply shortly (timeout after 7 seconds).", reply_message.body.to_plain_text
   end
 end
