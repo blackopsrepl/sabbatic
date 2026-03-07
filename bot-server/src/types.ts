@@ -61,6 +61,6 @@ export interface Message {
 
 export interface EnvVars {
   OPENROUTER_API_KEY: string;
-  PORT: string;
+  BOT_SERVER_PORT: string;
   SABBATIC_BASE_URL: string;
 }

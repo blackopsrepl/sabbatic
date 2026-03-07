@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Context, Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { serve } from '@hono/node-server';
@@ -21,11 +21,22 @@ app.use('*', cors());
 app.use('*', (c, next) => {
   c.set('env', {
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
-    PORT: process.env.PORT || '3333',
+    BOT_SERVER_PORT: process.env.BOT_SERVER_PORT || '3333',
     SABBATIC_BASE_URL: process.env.SABBATIC_BASE_URL || '',
   });
   return next();
 });
+
+
+function webhookUrlFor(c: Context<Env>, shortcode: string): string {
+  const requestUrl = new URL(c.req.url);
+  const botServerPort = process.env.BOT_SERVER_PORT || '3333';
+
+  requestUrl.pathname = `/webhook/${shortcode}`;
+  requestUrl.port = botServerPort;
+
+  return requestUrl.toString();
+}
 
 // Health check
 app.get('/', (c) => {
@@ -71,7 +82,7 @@ app.get('/admin/bots', (c) => {
   return c.json({ bots: bots.map(b => ({
     ...b,
     respond_to_any: Boolean(b.respond_to_any),
-    webhook_url: `${c.req.url.split('/admin')[0]}/webhook/${b.shortcode}`,
+    webhook_url: webhookUrlFor(c, b.shortcode),
   })) });
 });
 
@@ -90,7 +101,7 @@ app.get('/admin/bots/:shortcode', (c) => {
     bot: {
       ...bot,
       respond_to_any: Boolean(bot.respond_to_any),
-      webhook_url: `${c.req.url.split('/admin')[0]}/webhook/${bot.shortcode}`,
+      webhook_url: webhookUrlFor(c, bot.shortcode),
     } 
   });
 });

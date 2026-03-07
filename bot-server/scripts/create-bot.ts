@@ -77,7 +77,8 @@ async function main() {
     console.log('\n✓ Bot created successfully!');
     console.log(`  ID: ${bot.id}`);
     console.log(`  Shortcode: @${bot.shortcode}`);
-    console.log(`  Webhook: http://localhost:3333/webhook/${bot.shortcode}`);
+    const botServerPort = process.env.BOT_SERVER_PORT || '3333';
+    console.log(`  Webhook: http://localhost:${botServerPort}/webhook/${bot.shortcode}`);
   } catch (error) {
     console.error('\n✗ Error creating bot:', (error as Error).message);
     process.exit(1);
