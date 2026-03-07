@@ -1,21 +1,24 @@
 {
   "name": "Sabbatic Dev Container",
-  "image": "mcr.microsoft.com/devcontainers/ruby:3.4-bullseye",
+  "image": "mcr.microsoft.com/devcontainers/ruby:3.3-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/homebrew:1": {},
-    "ghcr.io/opencodehq/devcontainer-features/opencode:1": {},
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {},
+    "ghcr.io/devcontainers-extra/features/opencode:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/devcontainers/features/node:1": {},
-    "ghcr.io/devcontainers/features/gum:1": {},
-    "ghcr.io/devcontainers/features/mise:1": {}
+    // "ghcr.io/devcontainers/features/node:1": {},
+    // "ghcr.io/rio/features/gum:1": {},
+    // "ghcr.io/devcontainers-extra/features/mise:1": {}
   },
-  "postCreateCommand": "brew install sqlite ffmpeg && bundle install && yarn install || true",
+  // "postCreateCommand": "brew install sqlite ffmpeg && bundle install && yarn install || true",
+  "postCreateCommand": "bin/setup",
   "customizations": {
     "vscode": {
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash"
       },
       "extensions": [
+        "mhutchie.git-graph",
         "rebornix.Ruby",
         "castwide.solargraph",
         "ms-azuretools.vscode-docker",

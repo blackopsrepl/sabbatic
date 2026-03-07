@@ -1,0 +1,11 @@
+[
+  {
+    "shortcode": "testbot",
+    "name": "Test Bot",
+    "soul": "You are TestBot, a friendly test bot. Keep responses very short.",
+    "model": "anthropic/claude-3.5-sonnet",
+    "bot_key": "YOUR_BOT_KEY_HERE",
+    "respond_to_any": false,
+    "rate_limit_hourly": 20
+  }
+]

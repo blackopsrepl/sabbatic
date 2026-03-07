@@ -55,6 +55,11 @@ Rails.application.configure do
   # Allow the app to be served from any host.
   config.hosts = []
 
+  # When running inside Codespaces the browser Origin header can differ
+  # (e.g. http://localhost:3000) from the request.base_url. Disable the
+  # strict origin check in development to avoid ActionController::InvalidCrossOriginRequest.
+  config.action_controller.forgery_protection_origin_check = false
+
   # Raises error for missing translations.
   # config.i18n.raise_on_missing_translations = true
 
