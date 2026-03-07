@@ -29,17 +29,21 @@ export async function handleWebhook(
   // Get recent messages for context (simplified - in production, fetch from Sabbatic API)
   const recentMessages: Message[] = [];
 
-  // Check if bot was mentioned
-  const mentionPattern = new RegExp(`@${botShortcode}`, 'i');
-  const wasMentioned = mentionPattern.test(messageText);
+  // Check if bot was mentioned (plain text can omit ActionText mention attachments, so inspect HTML too)
+  const wasMentionedInPlainText = includesBotMentionInText(messageText, botShortcode);
+  const wasMentionedInHtml = includesBotMentionInHtml(payload.message.body.html, botShortcode);
+  const wasMentioned = wasMentionedInPlainText || wasMentionedInHtml;
   const isDirectConversation = roomName == null;
 
   console.log('[WEBHOOK] Routing decision', {
     bot: botShortcode,
     messageId: payload.message.id,
     roomId: payload.room.id,
+    roomName: normalizedRoomName,
     isDirectConversation,
     wasMentioned,
+    wasMentionedInPlainText,
+    wasMentionedInHtml,
     respondToAny: Boolean(bot.respond_to_any),
   });
 
@@ -185,6 +189,24 @@ function botKeyHint(botKey: string): string {
   const prefix = token.slice(0, 3);
   const suffix = token.slice(-3);
   return `${id}-${prefix}…${suffix}`;
+}
+
+
+function includesBotMentionInText(text: string, botShortcode: string): boolean {
+  return text.toLowerCase().includes(`@${botShortcode}`.toLowerCase());
+}
+
+function includesBotMentionInHtml(html: string, botShortcode: string): boolean {
+  if (!html) return false;
+
+  const normalizedHtml = html.toLowerCase();
+  const normalizedBotShortcode = botShortcode.toLowerCase();
+
+  if (!normalizedHtml.includes('application/vnd.campfire.mention')) {
+    return false;
+  }
+
+  return normalizedHtml.includes(normalizedBotShortcode);
 }
 
 export function extractMentions(text: string): string[] {
