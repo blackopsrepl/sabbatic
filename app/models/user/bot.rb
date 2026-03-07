@@ -49,10 +49,16 @@ module User::Bot
   end
 
   def deliver_webhook_later(message)
-    Bot::WebhookJob.perform_later(self, message) if webhook
+    if webhook
+      Rails.logger.info("Enqueuing bot webhook", bot_user_id: id, webhook_id: webhook.id, message_id: message.id, room_id: message.room_id)
+      Bot::WebhookJob.perform_later(self, message)
+    else
+      Rails.logger.info("Skipping bot webhook enqueue because webhook is missing", bot_user_id: id, message_id: message.id)
+    end
   end
 
   def deliver_webhook(message)
+    Rails.logger.info("Delivering bot webhook", bot_user_id: id, webhook_id: webhook&.id, message_id: message.id)
     webhook.deliver(message)
   end
 

@@ -46,6 +46,15 @@ class WebhookTest < ActiveSupport::TestCase
     end
   end
 
+
+  test "delivery with connection failure" do
+    Webhook.any_instance.stubs(:post).raises(Errno::ECONNREFUSED)
+    response = webhooks(:bender).deliver(messages(:first))
+
+    reply_message = Message.last
+    assert_equal "Failed to connect to bot webhook endpoint", reply_message.body.to_plain_text
+  end
+
   test "delivery that times out" do
     Webhook.any_instance.stubs(:post).raises(Net::OpenTimeout)
     response = webhooks(:bender).deliver(messages(:first))
