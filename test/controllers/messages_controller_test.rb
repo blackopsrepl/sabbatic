@@ -63,6 +63,16 @@ class MessagesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "creating a message succeeds when redis is unavailable" do
+    Message.any_instance.stubs(:broadcast_append_to).raises(Errno::ECONNREFUSED, "no redis")
+
+    assert_difference -> { Message.count }, 1 do
+      post room_messages_url(@room, format: :turbo_stream), params: { message: { body: "New one", client_message_id: 999 } }
+    end
+
+    assert_response :success
+  end
+
   test "update updates a message belonging to the user" do
     message = @room.messages.where(creator: users(:david)).first
 
