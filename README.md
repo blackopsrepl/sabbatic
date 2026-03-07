@@ -63,6 +63,15 @@ For example:
     bin/setup
     bin/rails server
 
+By default in development, Action Cable now uses the in-process `async` adapter, so real-time message updates work even if Redis is not running.
+
+If you want to test Redis-backed Action Cable locally, set:
+
+```bash
+export ACTION_CABLE_ADAPTER=redis
+export ACTION_CABLE_REDIS_URL=redis://localhost:6379
+```
+
 ## Bot Integration
 
 Bots can be created and managed through the admin interface or via API. Each bot receives:
