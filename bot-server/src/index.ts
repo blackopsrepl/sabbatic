@@ -68,7 +68,8 @@ app.post('/webhook/:botId', async (c) => {
     }
 
     console.log(`[WEBHOOK] Success! Response: ${result.response}`);
-    return c.json({ success: true, response: result.response });
+    console.log(`[WEBHOOK] Result reason: ${result.reason ?? "n/a"}`);
+    return c.json({ success: true, response: result.response, reason: result.reason });
   } catch (error) {
     console.log(`[WEBHOOK] EXCEPTION:`, (error as Error).message);
     return c.json({ error: (error as Error).message }, 500);

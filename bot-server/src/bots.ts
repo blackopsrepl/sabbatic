@@ -3,11 +3,13 @@ import { callOpenRouter, getOpenRouterKey } from './openrouter.js';
 import { buildMentionPrompt, buildRespondToAnyPrompt } from './prompts.js';
 import type { WebhookPayload, Message, EnvVars } from './types.js';
 
+type WebhookResult = { success: boolean; response?: string; error?: string; reason?: string };
+
 export async function handleWebhook(
   payload: WebhookPayload,
   botShortcode: string,
   env: EnvVars
-): Promise<{ success: boolean; response?: string; error?: string }> {
+): Promise<WebhookResult> {
   const bot = getBotByShortcode(botShortcode);
 
   if (!bot) {
@@ -22,6 +24,7 @@ export async function handleWebhook(
   const messageText = payload.message.body.plain;
   const senderName = payload.user.name;
   const roomName = payload.room.name;
+  const normalizedRoomName = roomName ?? `Direct room #${payload.room.id}`;
 
   // Get recent messages for context (simplified - in production, fetch from Sabbatic API)
   const recentMessages: Message[] = [];
@@ -29,11 +32,22 @@ export async function handleWebhook(
   // Check if bot was mentioned
   const mentionPattern = new RegExp(`@${botShortcode}`, 'i');
   const wasMentioned = mentionPattern.test(messageText);
+  const isDirectConversation = roomName == null;
 
-  if (wasMentioned) {
+  console.log('[WEBHOOK] Routing decision', {
+    bot: botShortcode,
+    messageId: payload.message.id,
+    roomId: payload.room.id,
+    isDirectConversation,
+    wasMentioned,
+    respondToAny: Boolean(bot.respond_to_any),
+  });
+
+  if (wasMentioned || isDirectConversation) {
+    const trigger = wasMentioned ? 'mention' : 'direct-room';
     const systemPrompt = buildMentionPrompt(
       bot.soul,
-      roomName,
+      normalizedRoomName,
       senderName,
       messageText,
       recentMessages
@@ -47,10 +61,20 @@ export async function handleWebhook(
         systemPrompt
       );
 
-      if (response.trim() && !response.includes('SKIP')) {
+      const normalized = response.trim();
+      console.log('[WEBHOOK] Mention/direct OpenRouter result', {
+        trigger,
+        chars: response.length,
+        normalizedChars: normalized.length,
+        containsSkip: response.includes('SKIP'),
+      });
+
+      if (normalized && !response.includes('SKIP')) {
         await postMessageToSabbatic(bot.bot_key, response, payload.room.id, env);
-        return { success: true, response };
+        return { success: true, response, reason: `replied-via-${trigger}` };
       }
+
+      return { success: true, response: '', reason: `empty-or-skip-via-${trigger}` };
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
@@ -68,7 +92,7 @@ export async function handleWebhook(
 
     const systemPrompt = buildRespondToAnyPrompt(
       bot.soul,
-      roomName,
+      normalizedRoomName,
       recentMessages,
       newMessage
     );
@@ -81,16 +105,25 @@ export async function handleWebhook(
         systemPrompt
       );
 
-      if (!shouldRespond.includes('SKIP') && shouldRespond.trim()) {
-        await postMessageToSabbatic(bot.bot_key, shouldRespond.trim(), payload.room.id, env);
-        return { success: true, response: shouldRespond };
+      const normalized = shouldRespond.trim();
+      console.log('[WEBHOOK] Respond-to-any OpenRouter result', {
+        chars: shouldRespond.length,
+        normalizedChars: normalized.length,
+        containsSkip: shouldRespond.includes('SKIP'),
+      });
+
+      if (!shouldRespond.includes('SKIP') && normalized) {
+        await postMessageToSabbatic(bot.bot_key, normalized, payload.room.id, env);
+        return { success: true, response: shouldRespond, reason: 'replied-via-respond-to-any' };
       }
+
+      return { success: true, response: '', reason: 'empty-or-skip-via-respond-to-any' };
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
   }
 
-  return { success: true, response: '' };
+  return { success: true, response: '', reason: 'no-trigger-met' };
 }
 
 export async function postMessageToSabbatic(

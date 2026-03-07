@@ -40,7 +40,7 @@ export interface WebhookPayload {
   };
   room: {
     id: number;
-    name: string;
+    name: string | null;
   };
   message: {
     id: number;
