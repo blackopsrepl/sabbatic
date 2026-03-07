@@ -10,7 +10,8 @@
     "create-bot": "tsx scripts/create-bot.ts",
     "edit-bot": "tsx scripts/edit-bot.ts",
     "delete-bot": "tsx scripts/delete-bot.ts",
-    "list-bots": "tsx scripts/list-bots.ts"
+    "list-bots": "tsx scripts/list-bots.ts",
+    "diagnose-post": "tsx scripts/diagnose-sabbatic-post.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",

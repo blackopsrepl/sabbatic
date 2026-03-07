@@ -80,6 +80,21 @@ curl -d 'Hello from bot!' https://your-domain.com/rooms/1/BOT_KEY/messages
 curl -F "attachment=@/path/to/file.png" https://your-domain.com/rooms/1/BOT_KEY/messages
 ```
 
+
+### Troubleshooting bot webhook delivery (401/redirects)
+
+From `bot-server/`, run:
+
+```bash
+pnpm diagnose-post --room ROOM_ID --bot-key BOT_KEY --base-url "$SABBATIC_BASE_URL"
+```
+
+This checks both:
+- `GET /rooms/:room_id/messages?bot_key=...` (auth sanity check)
+- `POST /rooms/:room_id/:bot_key/messages` (actual bot post path)
+
+It prints status, `Location`, `X-Request-Id`, and body preview so you can quickly see whether failures are due to bad `bot_key`, wrong `SABBATIC_BASE_URL`, or room access.
+
 ## Worth Noting
 
 When you start Sabbatic for the first time, you'll be guided through
