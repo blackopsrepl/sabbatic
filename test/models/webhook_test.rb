@@ -73,6 +73,6 @@ class WebhookTest < ActiveSupport::TestCase
     response = webhooks(:bender).deliver(messages(:first))
 
     reply_message = Message.last
-    assert_equal "Bot is still processing and may reply shortly (timeout after 7 seconds).", reply_message.body.to_plain_text
+    assert_equal "Failed to respond within 7 seconds", reply_message.body.to_plain_text
   end
 end
