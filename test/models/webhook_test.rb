@@ -39,11 +39,41 @@ class WebhookTest < ActiveSupport::TestCase
     assert reply_message.attachment.present?
   end
 
+
+  test "delivery with json reply does not create attachment message" do
+    assert_no_difference -> { Message.count } do
+      WebMock.stub_request(:post, webhooks(:bender).url).to_return(
+        status: 200,
+        body: { success: true, response: "Hello" }.to_json,
+        headers: { "Content-Type" => "application/json" }
+      )
+
+      webhooks(:bender).deliver(messages(:first))
+    end
+  end
+
   test "delivery with error reply" do
     assert_no_difference -> { Message.count } do
       WebMock.stub_request(:post, webhooks(:bender).url).to_return(status: 500, body: "Internal Error!", headers: {})
       response = webhooks(:bender).deliver(messages(:first))
     end
+  end
+
+
+  test "delivery with connection failure" do
+    Webhook.any_instance.stubs(:post).raises(Errno::ECONNREFUSED)
+    webhooks(:bender).deliver(messages(:first))
+
+    reply_message = Message.last
+    assert_equal "Failed to connect to bot webhook endpoint", reply_message.body.to_plain_text
+  end
+
+  test "delivery with socket error" do
+    Webhook.any_instance.stubs(:post).raises(SocketError, "failed to resolve host")
+    webhooks(:bender).deliver(messages(:first))
+
+    reply_message = Message.last
+    assert_equal "Failed to connect to bot webhook endpoint", reply_message.body.to_plain_text
   end
 
   test "delivery that times out" do

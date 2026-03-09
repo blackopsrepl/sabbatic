@@ -18,7 +18,7 @@ class Rooms::InvolvementsControllerTest < ActionDispatch::IntegrationTest
     end
     end
 
-    assert_turbo_stream_broadcasts [ users(:david), :rooms ], count: 2 do
+    assert_turbo_stream_broadcasts [ users(:david), :rooms ], count: 1 do
     assert_changes -> { memberships(:david_watercooler).reload.involvement }, from: "invisible", to: "everything" do
       put room_involvement_url(rooms(:watercooler)), params: { involvement: "everything" }
       assert_redirected_to room_involvement_url(rooms(:watercooler))

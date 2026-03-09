@@ -7,15 +7,25 @@ class Webhook < ApplicationRecord
   belongs_to :user
 
   def deliver(message)
+    Rails.logger.info("Webhook deliver started: webhook_id=#{id} bot_user_id=#{user_id} message_id=#{message.id} room_id=#{message.room_id} url=#{url}")
+
     post(payload(message)).tap do |response|
+      Rails.logger.info("Webhook deliver response: webhook_id=#{id} message_id=#{message.id} code=#{response.code} content_type=#{response.content_type}")
+
       if text = extract_text_from(response)
+        Rails.logger.info("Webhook deliver text reply: webhook_id=#{id} message_id=#{message.id} bytes=#{text.bytesize}")
         receive_text_reply_to(message.room, text: text)
       elsif attachment = extract_attachment_from(response)
+        Rails.logger.info("Webhook deliver attachment reply: webhook_id=#{id} message_id=#{message.id} attachment_id=#{attachment.id}")
         receive_attachment_reply_to(message.room, attachment: attachment)
       end
     end
   rescue Net::OpenTimeout, Net::ReadTimeout
+    Rails.logger.warn("Webhook deliver timeout: webhook_id=#{id} bot_user_id=#{user_id} message_id=#{message.id} timeout_seconds=#{ENDPOINT_TIMEOUT}")
     receive_text_reply_to message.room, text: "Failed to respond within #{ENDPOINT_TIMEOUT} seconds"
+  rescue Errno::ECONNREFUSED, SocketError => error
+    Rails.logger.warn("Webhook deliver connection failure: webhook_id=#{id} bot_user_id=#{user_id} message_id=#{message.id} url=#{url} error_class=#{error.class.name} error_message=#{error.message}")
+    receive_text_reply_to message.room, text: "Failed to connect to bot webhook endpoint"
   end
 
   private
@@ -61,7 +71,10 @@ class Webhook < ApplicationRecord
     end
 
     def extract_attachment_from(response)
-      if response.content_type && mime_type = Mime::Type.lookup(response.content_type)
+      return if response.code != "200"
+      return if response.content_type.blank? || response.content_type == "application/json"
+
+      if mime_type = Mime::Type.lookup(response.content_type)
         ActiveStorage::Blob.create_and_upload! \
           io: StringIO.new(response.body), filename: "attachment.#{mime_type.symbol}", content_type: mime_type.to_s
       end

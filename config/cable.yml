@@ -3,7 +3,10 @@ default: &default
   url: redis://localhost:6379
 
 development:
-  <<: *default
+  adapter: <%= ENV.fetch("ACTION_CABLE_ADAPTER", "async") %>
+  <% if ENV.fetch("ACTION_CABLE_ADAPTER", "async") == "redis" %>
+  url: <%= ENV.fetch("ACTION_CABLE_REDIS_URL", "redis://localhost:6379") %>
+  <% end %>
   channel_prefix: campfire_development
 
 test:
